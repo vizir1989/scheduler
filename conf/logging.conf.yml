@@ -1,0 +1,39 @@
+version: 1
+disable_existing_loggers: no
+filters:
+  blacklist_filter:
+    (): utils.logging.logging_filters.Blacklist
+    blacklist: ['/metrics','/health_checker']
+formatters:
+  elk:
+    (): utils.logging.elk_formatter.ElkJsonFormatter
+handlers:
+  console:
+    class: logging.StreamHandler
+  syslog:
+    class: rfc5424logging.Rfc5424SysLogHandler
+    formatter: elk
+    address: ["127.0.0.1", 9000]
+    filters: [blacklist_filter]
+root:
+  level: INFO
+  handlers: [console, syslog]
+loggers:
+  'gunicorn.access':
+    level: INFO
+    propagate: yes
+  'gunicorn.error':
+    level: INFO
+    propagate: yes
+  'uvicorn':
+    level: INFO
+    propagate: yes
+  'in_image_product':
+    level: INFO
+    propagate: yes
+  'ng20':
+    level: DEBUG
+    propagate: yes
+  'ihub':
+    level: DEBUG
+    propagate: yes

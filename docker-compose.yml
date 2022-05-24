@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  web:
+    container_name: web
+    build:
+      dockerfile: ./docker/scheduler.dockerfile
+      context: .
+    ports:
+      - 8081:8081
+    command: ./scripts/web/startup.sh -m
+    restart: on-failure
+    env_file:
+      - conf/env.example
+    volumes:
+      - .:/code
+    depends_on:
+      web_db:
+        condition: service_healthy
+      py36_worker:
+        condition: service_started
+      py38_worker:
+        condition: service_started
+      scheduler_flower:
+        condition: service_started
+
+  web_db:
+    container_name: web_db
+    image: library/postgres:13.2
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=main_db
+    restart: on-failure
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres", "-d", "main_db" ]
+      interval: 5s
+      retries: 5
+    volumes:
+      - ./scripts/postgres:/docker-entrypoint-initdb.d
+
+  py36_worker:
+    container_name: py36_worker
+    build:
+      dockerfile: ./docker/py36_worker.dockerfile
+      context: .
+    command: ./scripts/workers/startup.sh py36 2
+    env_file:
+      - conf/env.example
+    volumes:
+      - .:/code
+    depends_on:
+      web_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  py38_worker:
+    container_name: py38_worker
+    build:
+      dockerfile: ./docker/py38_worker.dockerfile
+      context: .
+    command: ./scripts/workers/startup.sh py38 2
+    env_file:
+      - conf/env.example
+    volumes:
+      - .:/code
+    depends_on:
+      web_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  rabbitmq:
+    container_name: rabbitmq
+    hostname: rabbitmq
+    image: rabbitmq:3.8-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=scheduler
+      - RABBITMQ_DEFAULT_PASS=scheduler
+      - RABBITMQ_DEFAULT_VHOST=scheduler
+    depends_on:
+      web_db:
+        condition: service_healthy
+    restart: on-failure
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    ports:
+      - 5672:5672
+      - 15672:15672
+      - 15692:15692
+    volumes:
+      - ./scripts/rabbitmq:/etc/rabbitmq/
+
+  scheduler_flower:
+    container_name: scheduler_flower
+    build:
+      dockerfile: docker/scheduler.dockerfile
+      context: .
+    ports:
+      - 5555:5555
+    depends_on:
+      web_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      py38_worker:
+        condition: service_started
+      py36_worker:
+        condition: service_started
+    volumes:
+      - .:/code
+    env_file:
+      - conf/flower.env
+    command: celery --app celery_app.celeryapp flower -l INFO

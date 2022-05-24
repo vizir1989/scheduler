@@ -1,0 +1,11 @@
+certifi==2021.10.8
+dill==0.3.4
+joblib==1.1.0
+numpy==1.22.3
+scikit-learn==1.1.0
+scipy==1.8.0
+sklearn==0.0
+threadpoolctl==3.1.0
+celery==5.1.2
+sqlalchemy==1.4.36
+psycopg2-binary==2.9.3

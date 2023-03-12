@@ -1,7 +1,5 @@
-# Task for Behavox
-
 ## Description
-Scheduler for Behavox based on FastAPI + Celery + Docker.
+Scheduler based on FastAPI + Celery + Docker.
 
 ## Running project
 ``` shell
